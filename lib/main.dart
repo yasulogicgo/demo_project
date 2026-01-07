@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:demo_app/constant/constant_icons.dart';
 import 'package:demo_app/constant/constant_string.dart';
-import 'package:demo_app/presentation/dff/maintenance_app.dart';
+import 'package:demo_app/presentation/kill_switch_screen/app_disabled_app.dart';
+import 'package:demo_app/presentation/kill_switch_screen/force_update_app.dart';
+import 'package:demo_app/presentation/kill_switch_screen/maintenance_app.dart';
+
 import 'package:demo_app/routes/app_pages.dart';
 import 'package:demo_app/routes/app_routes.dart';
 import 'package:demo_app/service_locator.dart';
@@ -18,14 +21,9 @@ import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:logic_go_network/network/rest_client.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import 'constant/app_constant.dart';
 import 'firebase_options.dart';
 
-// CHANGE THESE TO YOUR REAL APP IDs
-const String androidPackageName = 'com.logicgo.demo_app'; // ← Change if different
-const String iosAppId = '1234567890'; // ← Change if you have iOS app
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,7 +52,7 @@ void main() async {
   await remoteConfig.setDefaults({
     'app_enabled': true,
     'disable_message': 'The app is currently unavailable. Please try again later.',
-    'minimum_version_android': '1.0.0',
+    'minimum_version_android': '0.2.0',
     'minimum_version_ios': '1.0.0',
     'force_update_title': 'Update Required',
     'force_update_message': 'A new version is required to continue using the app.',
@@ -103,111 +101,6 @@ bool _isVersionGreaterOrEqual(String current, String minimum) {
   return true;
 }
 
-// ====================== Force Update App ======================
-class ForceUpdateApp extends StatelessWidget {
-  const ForceUpdateApp({super.key});
-
-  Future<void> _launchStore() async {
-    final String url = Platform.isAndroid
-        ? 'https://play.google.com/store/apps/details?id=$androidPackageName'
-        : 'https://apps.apple.com/app/id$iosAppId';
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final remoteConfig = FirebaseRemoteConfig.instance;
-
-    return ScreenUtilInit(
-      designSize: const Size(375, 812),
-      minTextAdapt: true,
-      splitScreenMode: true,
-      builder: (_,_) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          body: Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32.w),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.system_update, size: 120.sp, color: Colors.blue),
-                  SizedBox(height: 40.h),
-                  Text(
-                    remoteConfig.getString('force_update_title'),
-                    style: TextStyle(fontSize: 24.sp, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 16.h),
-                  Text(
-                    remoteConfig.getString('force_update_message'),
-                    style: TextStyle(fontSize: 16.sp),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 50.h),
-                  ElevatedButton(
-                    onPressed: _launchStore,
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(horizontal: 50.w, vertical: 16.h),
-                      textStyle: TextStyle(fontSize: 18.sp),
-                    ),
-                    child: Text(remoteConfig.getString('force_update_button')),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ====================== App Disabled App ======================
-class AppDisabledApp extends StatelessWidget {
-  final String message;
-  const AppDisabledApp({super.key, required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return ScreenUtilInit(
-      designSize: const Size(375, 812),
-      minTextAdapt: true,
-      splitScreenMode: true,
-      builder: (_, __) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          body: Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32.w),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.block, size: 120.sp, color: Colors.grey),
-                  SizedBox(height: 40.h),
-                  Text(
-                    'App Unavailable',
-                    style: TextStyle(fontSize: 24.sp, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 16.h),
-                  Text(
-                    message,
-                    style: TextStyle(fontSize: 16.sp),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 // ====================== Normal MyApp (unchanged) ======================
 class MyApp extends StatefulWidget {
@@ -225,7 +118,7 @@ class _MyAppState extends State<MyApp> {
       designSize: const Size(375, 812),
       minTextAdapt: true,
       splitScreenMode: true,
-      builder: (_, __) => GetMaterialApp(
+      builder: (_, _) => GetMaterialApp(
         title: 'Flutter Demo',
         debugShowCheckedModeBanner: false,
         initialRoute: AppRoutes.home,
