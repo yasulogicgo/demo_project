@@ -1,179 +1,243 @@
 import 'package:demo_app/Model/response_model.dart';
 import 'package:demo_app/data/repo/ApiEndPoint.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:logic_go_network/network/api_type.dart';
 import '../../constant/app_constant.dart';
 
-
-
 class AuthRepo {
+  // Helper methods to get messages from Remote Config
+  static String _getApiErrorMessage() {
+    final remoteConfig = FirebaseRemoteConfig.instance;
+    return remoteConfig.getString('api_error_message');
+  }
 
-  // Register user api
-  static Future<ResponseModel> registerApi({ required Map<String,dynamic> body}) async{
-    final response = await restClient.post(
-      APIType.public,
-      body,
-      path: ApiEndPoint.registerByEmail,
-      headers: await requestHeader(APIType.public),
-     );
+  static String _getMaintenanceMessage() {
+    final remoteConfig = FirebaseRemoteConfig.instance;
+    return remoteConfig.getString('maintenance_message');
+  }
 
-    ResponseModel responseModel = ResponseModel.fromJson(response.data);
+  // Handle server-side errors (500, 502, 503, 504)
+  static ResponseModel _handleServerError(int? statusCode) {
+    if (statusCode == 503) {
+      // Special message for maintenance / service unavailable
+      return ResponseModel(
+        message: _getMaintenanceMessage(),
+        body: null,
+        status: false,
+      );
+    }
+
+    // Other server errors
+    return ResponseModel(
+      message: _getApiErrorMessage(),
+      body: null,
+      status: false,
+    );
+  }
+
+  // ==================== Register API ====================
+  static Future<ResponseModel> registerApi({
+    required Map<String, dynamic> body,
+  }) async {
     try {
-      if (responseModel.status) {
-        return ResponseModel(message: responseModel.message,
-            body: responseModel.body,
-            status: responseModel.status);
+      final response = await restClient.post(
+        APIType.public,
+        body,
+        path: ApiEndPoint.registerByEmail,
+        headers: await requestHeader(APIType.public),
+      );
+
+      final int? statusCode = response.statusCode;
+      _handleServerError(503);
+      // Check for server errors (500–504)
+      if (statusCode != null && statusCode >= 500 && statusCode <= 504) {
+        return _handleServerError(statusCode);
       }
-      else {
-        return ResponseModel(message: responseModel.message,
-            body: responseModel.body,
-            status: responseModel.status);
-      }
-    }catch(e){
-      List<String> error = e.toString().split(': ');
-      List<String> splitError = error[4].split(',');
-      String finalError = splitError[0];
-      return ResponseModel(message: finalError, body: null, status: false);
+
+      ResponseModel responseModel = ResponseModel.fromJson(response.data);
+
+      return ResponseModel(
+        message: responseModel.message,
+        body: responseModel.body,
+        status: responseModel.status,
+      );
+    } catch (e) {
+      // Network failure, timeout, no internet
+      return ResponseModel(
+        message: _getApiErrorMessage(),
+        body: null,
+        status: false,
+      );
     }
   }
 
-  // login user api
-  static Future<ResponseModel> loginApi({required Map<String, dynamic> body}) async{
-        final response = await restClient.post(
-          APIType.public,
-          body,
-          path: ApiEndPoint.loginByEmail,
-          headers: await requestHeader(APIType.public),
-        );
+  // ==================== Login API ====================
+  static Future<ResponseModel> loginApi({
+    required Map<String, dynamic> body,
+  }) async {
+    try {
+      final response = await restClient.post(
+        APIType.public,
+        body,
+        path: ApiEndPoint.loginByEmail,
+        headers: await requestHeader(APIType.public),
+      );
 
-        ResponseModel result = ResponseModel.fromJson(response.data);
-    try{
+      final int? statusCode = response.statusCode;
 
-      if(result.status){
-        return ResponseModel(message: result.message, body: result.body, status: result.status);
+      if (statusCode != null && statusCode >= 500 && statusCode <= 504) {
+        return _handleServerError(statusCode);
       }
-      else{
-        return ResponseModel(message: result.message, body: result.body, status: result.status);
-      }
 
-    }
-    catch(e){
-      List<String> error = e.toString().split(': ');
-      List<String> splitError = error[4].split(',');
-      String finalError = splitError[0];
-      return ResponseModel(message: finalError, body: null, status: false);
+      ResponseModel result = ResponseModel.fromJson(response.data);
+
+      return ResponseModel(
+        message: result.message,
+        body: result.body,
+        status: result.status,
+      );
+    } catch (e) {
+      return ResponseModel(
+        message: _getApiErrorMessage(),
+        body: null,
+        status: false,
+      );
     }
   }
 
-  // forgot password api // in body enter the email
-  static Future<ResponseModel> forgotPasswordApi({ required Map<String, dynamic> email}) async{
-    try{
-
-      final response =  await restClient.post(
+  // ==================== Forgot Password API ====================
+  static Future<ResponseModel> forgotPasswordApi({
+    required Map<String, dynamic> email,
+  }) async {
+    try {
+      final response = await restClient.post(
         APIType.public,
         email,
         path: ApiEndPoint.forgotPassword,
         headers: await requestHeader(APIType.public),
       );
 
+      final int? statusCode = response.statusCode;
+
+      if (statusCode != null && statusCode >= 500 && statusCode <= 504) {
+        return _handleServerError(statusCode);
+      }
+
       ResponseModel result = ResponseModel.fromJson(response.data);
 
-      if(result.status){
-        return ResponseModel(message: result.message, body: result.body, status: result.status);
-      }
-      else{
-        return ResponseModel(message: result.message, body: result.body, status: result.status);
-      }
-    }
-    catch(e){
-      List<String> error = e.toString().split(': ');
-      List<String> splitError = error[4].split(',');
-      String finalError = splitError[0];
-      return ResponseModel(message: finalError, body: null, status: false);
-    }
-  }
-
-  // resend email opt api //if forget password api call after 1 min time out otp exapride and rest bu this api //in body enter the email
-  static Future<ResponseModel> reSendEmailOtoApi({ required Map<String, dynamic> email}) async{
-    try{
-    final response =  await restClient.post(
-      APIType.public,
-      email,
-      path: ApiEndPoint.resendEmailOtp,
-      headers: await requestHeader(APIType.public),
-    );
-    ResponseModel result = ResponseModel.fromJson(response.data);
-
-
-      if(result.status){
-        return ResponseModel(message: result.message, body: result.body, status: result.status);
-      }
-      else{
-        return ResponseModel(message: result.message, body: result.body, status: result.status);
-      }
-    }
-    catch(e){
-      List<String> error = e.toString().split(': ');
-      List<String> splitError = error[4].split(',');
-      String finalError = splitError[0];
-      return ResponseModel(message: finalError, body: null, status: false);
+      return ResponseModel(
+        message: result.message,
+        body: result.body,
+        status: result.status,
+      );
+    } catch (e) {
+      return ResponseModel(
+        message: _getApiErrorMessage(),
+        body: null,
+        status: false,
+      );
     }
   }
 
-  // rest password api // if user otp verify after in body email ,oldepassword and new password send
-  static Future<ResponseModel> resetPasswordApi({ required Map<String, dynamic> body}) async{
-    try{
-
-    final response =  await restClient.post(
-      APIType.public,
-      body,
-      path: ApiEndPoint.resetPassword,
-      headers: await requestHeader(APIType.public),
-    );
-    ResponseModel result = ResponseModel.fromJson(response.data);
-
-
-      if(result.status){
-        return ResponseModel(message: result.message, body: result.body, status: result.status);
-      }
-      else{
-        return ResponseModel(message: result.message, body: result.body, status: result.status);
-      }
-    }
-    catch(e){
-      List<String> error = e.toString().split(': ');
-      List<String> splitError = error[4].split(',');
-      String finalError = splitError[0];
-      return ResponseModel(message: finalError, body: null, status: false);
-    }
-
-  }
-
-  // verify otp api // in body email and otp requred
-  static Future<ResponseModel> verifyOtpApi({ required Map<String, dynamic> body}) async {
+  // ==================== Resend Email OTP API ====================
+  static Future<ResponseModel> reSendEmailOtoApi({
+    required Map<String, dynamic> email,
+  }) async {
     try {
-    final response = await restClient.post(
-      APIType.public,
-      body,
-      path: ApiEndPoint.verifyEmailOtp,
-      headers: await requestHeader(APIType.public),
-    );
-    ResponseModel result = ResponseModel.fromJson(response.data);
+      final response = await restClient.post(
+        APIType.public,
+        email,
+        path: ApiEndPoint.resendEmailOtp,
+        headers: await requestHeader(APIType.public),
+      );
 
+      final int? statusCode = response.statusCode;
 
-      if (result.status) {
-        return ResponseModel(
-            message: result.message, body: result.body, status: result.status);
+      if (statusCode != null && statusCode >= 500 && statusCode <= 504) {
+        return _handleServerError(statusCode);
       }
-      else {
-        return ResponseModel(
-            message: result.message, body: result.body, status: result.status);
-      }
+
+      ResponseModel result = ResponseModel.fromJson(response.data);
+
+      return ResponseModel(
+        message: result.message,
+        body: result.body,
+        status: result.status,
+      );
+    } catch (e) {
+      return ResponseModel(
+        message: _getApiErrorMessage(),
+        body: null,
+        status: false,
+      );
     }
-    catch (e) {
-      List<String> error = e.toString().split(': ');
-      List<String> splitError = error[4].split(',');
-      String finalError = splitError[0];
-      return ResponseModel(message: finalError, body: null, status: false);
+  }
+
+  // ==================== Reset Password API ====================
+  static Future<ResponseModel> resetPasswordApi({
+    required Map<String, dynamic> body,
+  }) async {
+    try {
+      final response = await restClient.post(
+        APIType.public,
+        body,
+        path: ApiEndPoint.resetPassword,
+        headers: await requestHeader(APIType.public),
+      );
+
+      final int? statusCode = response.statusCode;
+
+      if (statusCode != null && statusCode >= 500 && statusCode <= 504) {
+        return _handleServerError(statusCode);
+      }
+
+      ResponseModel result = ResponseModel.fromJson(response.data);
+
+      return ResponseModel(
+        message: result.message,
+        body: result.body,
+        status: result.status,
+      );
+    } catch (e) {
+      return ResponseModel(
+        message: _getApiErrorMessage(),
+        body: null,
+        status: false,
+      );
+    }
+  }
+
+  // ==================== Verify OTP API ====================
+  static Future<ResponseModel> verifyOtpApi({
+    required Map<String, dynamic> body,
+  }) async {
+    try {
+      final response = await restClient.post(
+        APIType.public,
+        body,
+        path: ApiEndPoint.verifyEmailOtp,
+        headers: await requestHeader(APIType.public),
+      );
+
+      final int? statusCode = response.statusCode;
+
+      if (statusCode != null && statusCode >= 500 && statusCode <= 504) {
+        return _handleServerError(statusCode);
+      }
+
+      ResponseModel result = ResponseModel.fromJson(response.data);
+
+      return ResponseModel(
+        message: result.message,
+        body: result.body,
+        status: result.status,
+      );
+    } catch (e) {
+      return ResponseModel(
+        message: _getApiErrorMessage(),
+        body: null,
+        status: false,
+      );
     }
   }
 }
